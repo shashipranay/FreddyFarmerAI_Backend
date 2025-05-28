@@ -26,7 +26,17 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
 // Get all products with filtering and pagination
 export const getProducts = async (req: AuthRequest, res: Response) => {
   try {
-    const { category, minPrice, maxPrice, organic, search, page = 1, limit = 10 } = req.query;
+    const { 
+      category, 
+      minPrice, 
+      maxPrice, 
+      organic, 
+      search, 
+      sortBy = 'createdAt', 
+      sortOrder = 'desc',
+      page = 1, 
+      limit = 10 
+    } = req.query;
     
     const query: any = {};
     
@@ -44,11 +54,14 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
       ];
     }
 
+    const sort: any = {};
+    sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
+
     const products = await Product.find(query)
       .populate('farmer', 'name email location')
+      .sort(sort)
       .skip((Number(page) - 1) * Number(limit))
-      .limit(Number(limit))
-      .sort({ createdAt: -1 });
+      .limit(Number(limit));
 
     const total = await Product.countDocuments(query);
 

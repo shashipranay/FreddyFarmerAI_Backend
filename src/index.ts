@@ -1,59 +1,51 @@
-import cors from 'cors';
+// Load environment variables first
 import dotenv from 'dotenv';
-import express from 'express';
-import mongoose from 'mongoose';
-import OpenAI from 'openai';
-import authRoutes from './routes/authRoutes';
-import productRoutes from './routes/productRoutes';
+import path from 'path';
 
-// Load environment variables
-dotenv.config();
+const envPath = path.resolve(__dirname, '../.env');
+console.log('Loading .env from:', envPath);
+dotenv.config({ path: envPath });
+
+// Then import other dependencies
+import cors from 'cors';
+import express from 'express';
+import fs from 'fs';
+import mongoose from 'mongoose';
+import authRoutes from './routes/authRoutes';
+import farmerRoutes from './routes/farmerRoutes';
+import productRoutes from './routes/productRoutes';
+import uploadRoutes from './routes/uploadRoutes';
+
+// Debug logging for environment variables
+console.log('Environment variables loaded:');
+console.log('PORT:', process.env.PORT);
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Set' : 'Not set');
+console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Set' : 'Not set');
+console.log('API Key length:', process.env.GEMINI_API_KEY?.length);
+console.log('API Key starts with:', process.env.GEMINI_API_KEY?.substring(0, 7));
 
 const app = express();
+const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
-// Routes
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/farmer', farmerRoutes);
 
-// Basic route
-app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to Green Harvest Smart Market API' });
-});
-
-// AI-powered route for market analysis
-app.post('/api/analyze-market', async (req, res) => {
-  try {
-    const { query } = req.body;
-    
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are an agricultural market analysis expert. Provide insights based on the query."
-        },
-        {
-          role: "user",
-          content: query
-        }
-      ],
-    });
-
-    res.json({ analysis: response.choices[0].message.content });
-  } catch (error) {
-    console.error('Error in market analysis:', error);
-    res.status(500).json({ error: 'Failed to analyze market data' });
-  }
-});
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/green-harvest';
@@ -62,7 +54,6 @@ mongoose.connect(MONGODB_URI)
   .catch((error) => console.error('MongoDB connection error:', error));
 
 // Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 }); 

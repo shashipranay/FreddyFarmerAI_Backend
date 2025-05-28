@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User';
-import { AuthRequest } from '../types';
+import User from '../models/User';
 
 // Register a new user
 export const register = async (req: Request, res: Response) => {
@@ -35,12 +34,16 @@ export const login = async (req: Request, res: Response) => {
 };
 
 // Logout user
-export const logout = async (req: AuthRequest, res: Response) => {
+export const logout = async (req: Request, res: Response) => {
   try {
-    if (!req.user || !req.token) {
+    if (!req.user) {
       throw new Error('User not authenticated');
     }
-    req.user.tokens = req.user.tokens.filter(token => token.token !== req.token);
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      throw new Error('No token found');
+    }
+    req.user.tokens = req.user.tokens.filter((t: any) => t.token !== token);
     await req.user.save();
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
@@ -53,7 +56,7 @@ export const logout = async (req: AuthRequest, res: Response) => {
 };
 
 // Get user profile
-export const getProfile = async (req: AuthRequest, res: Response) => {
+export const getProfile = async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       throw new Error('User not authenticated');
