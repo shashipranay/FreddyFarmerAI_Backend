@@ -12,6 +12,7 @@ import express from 'express';
 import fs from 'fs';
 import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes';
+import customerRoutes from './routes/customerRoutes';
 import farmerRoutes from './routes/farmerRoutes';
 import productRoutes from './routes/productRoutes';
 import uploadRoutes from './routes/uploadRoutes';
@@ -43,6 +44,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/farmer', farmerRoutes);
+app.use('/api/customer', customerRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
