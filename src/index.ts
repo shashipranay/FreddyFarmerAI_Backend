@@ -62,6 +62,11 @@ app.use('/api/farmer', farmerRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/cart', cartRoutes);
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Server is running' });
+});
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -74,7 +79,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // 404 handler
 app.use((req: express.Request, res: express.Response) => {
   console.log('404 Not Found:', req.method, req.path);
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({ error: 'Route not found', path: req.path });
 });
 
 // Connect to MongoDB
