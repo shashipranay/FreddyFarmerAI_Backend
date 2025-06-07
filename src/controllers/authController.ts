@@ -69,4 +69,20 @@ export const getProfile = async (req: Request, res: Response) => {
       res.status(500).json({ error: 'An error occurred while fetching profile' });
     }
   }
+};
+
+// Verify token
+export const verifyToken = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      throw new Error('User not authenticated');
+    }
+    res.json({ valid: true, user: req.user });
+  } catch (error) {
+    if (error instanceof Error) {
+      res.status(401).json({ valid: false, error: error.message });
+    } else {
+      res.status(401).json({ valid: false, error: 'Invalid token' });
+    }
+  }
 }; 

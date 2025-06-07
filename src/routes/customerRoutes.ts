@@ -1,19 +1,31 @@
 import express from 'express';
-import { getChatResponse, getMarketInsights, getOrders } from '../controllers/customerController';
+import {
+    addToCart,
+    getCart,
+    getChatResponse,
+    getMarketInsights,
+    getOrders,
+    removeFromCart,
+    updateCartItem
+} from '../controllers/customerController';
 import { auth } from '../middleware/auth';
 
 const router = express.Router();
 
-// All routes require authentication
+// Apply authentication middleware to all routes
 router.use(auth);
 
 // Orders
 router.get('/orders', getOrders);
 
-// Market insights
+// Cart
+router.get('/cart', getCart);
+router.post('/cart/add', addToCart);
+router.put('/cart/update', updateCartItem);
+router.delete('/cart/remove/:productId', removeFromCart);
+
+// AI Features
+router.post('/chat', getChatResponse);
 router.get('/market-insights', getMarketInsights);
 
-// Chat with AI
-router.post('/chat', getChatResponse);
-
-export default router; 
+export default router;

@@ -12,6 +12,7 @@ import express from 'express';
 import fs from 'fs';
 import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes';
+import cartRoutes from './routes/cartRoutes';
 import customerRoutes from './routes/customerRoutes';
 import farmerRoutes from './routes/farmerRoutes';
 import productRoutes from './routes/productRoutes';
@@ -33,6 +34,17 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    body: req.body,
+    headers: req.headers
+  });
+  next();
+});
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -45,9 +57,22 @@ app.use('/api/products', productRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/customer', customerRoutes);
+app.use('/api/cart', cartRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
+// 404 handler
+app.use((req: express.Request, res: express.Response) => {
+  console.log('404 Not Found:', req.method, req.path);
+  res.status(404).json({ error: 'Route not found' });
+});
 
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/green-harvest';
@@ -58,4 +83,7 @@ mongoose.connect(MONGODB_URI)
 // Start server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log('Available routes:');
+  console.log('- GET /api/cart');
+  console.log('- POST /api/cart/add');
 }); 

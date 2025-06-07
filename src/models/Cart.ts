@@ -1,24 +1,25 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export interface IOrder extends Document {
+export interface ICartItem {
+  product: mongoose.Types.ObjectId;
+  quantity: number;
+}
+
+export interface ICart extends Document {
   customer: mongoose.Types.ObjectId;
-  products: Array<{
-    product: mongoose.Types.ObjectId;
-    quantity: number;
-  }>;
+  items: ICartItem[];
   total: number;
-  status: 'cart' | 'pending' | 'completed' | 'cancelled';
   createdAt: Date;
   updatedAt: Date;
 }
 
-const orderSchema = new Schema({
+const cartSchema = new Schema<ICart>({
   customer: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  products: [{
+  items: [{
     product: {
       type: Schema.Types.ObjectId,
       ref: 'Product',
@@ -32,16 +33,13 @@ const orderSchema = new Schema({
   }],
   total: {
     type: Number,
-    required: true,
-    min: 0
-  },
-  status: {
-    type: String,
-    enum: ['cart', 'pending', 'completed', 'cancelled'],
-    default: 'cart'
+    default: 0
   }
 }, {
   timestamps: true
 });
 
-export default mongoose.model<IOrder>('Order', orderSchema); 
+// Ensure a customer has only one cart
+cartSchema.index({ customer: 1 }, { unique: true });
+
+export const Cart = mongoose.model<ICart>('Cart', cartSchema); 
