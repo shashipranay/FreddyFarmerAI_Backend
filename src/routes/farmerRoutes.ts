@@ -31,7 +31,7 @@ router.delete('/expenses/:id', deleteExpense);
 // Trade routes
 router.get('/trades', getTrades);
 router.post('/trades', createTrade);
-router.put('/trades/:id/status', updateTradeStatus);
+router.put('/trades/:tradeId/status', updateTradeStatus);
 
 // Analytics routes
 router.get('/analytics/sales', getSalesAnalytics);

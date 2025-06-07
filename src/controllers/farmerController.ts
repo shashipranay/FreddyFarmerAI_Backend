@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Expense from '../models/Expense';
 import { Product } from '../models/Product';
 import Trade from '../models/Trade';
@@ -110,32 +111,64 @@ export const getTrades = async (req: Request, res: Response) => {
 
 export const updateTradeStatus = async (req: Request, res: Response) => {
   try {
+    console.log('Update trade status request:', {
+      params: req.params,
+      body: req.body,
+      user: req.user._id,
+      headers: req.headers
+    });
+
+    const { tradeId } = req.params;
     const { status } = req.body;
-    const tradeId = req.params.id;
 
-    // Find the trade and ensure it belongs to the farmer
-    const trade = await Trade.findOne({ _id: tradeId, farmer: req.user._id })
-      .populate('product');
+    if (!tradeId || !mongoose.Types.ObjectId.isValid(tradeId)) {
+      console.log('Invalid trade ID:', tradeId);
+      return res.status(400).json({ error: 'Invalid trade ID' });
+    }
 
+    if (!status || !['pending', 'completed', 'cancelled'].includes(status)) {
+      console.log('Invalid status:', status);
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const trade = await Trade.findById(tradeId);
     if (!trade) {
+      console.log('Trade not found:', tradeId);
       return res.status(404).json({ error: 'Trade not found' });
     }
 
-    // If changing to completed, verify stock availability
+    // Verify the trade belongs to this farmer
+    if (trade.farmer.toString() !== req.user._id.toString()) {
+      console.log('Unauthorized trade update attempt:', {
+        tradeFarmer: trade.farmer,
+        requestingUser: req.user._id
+      });
+      return res.status(403).json({ error: 'Not authorized to update this trade' });
+    }
+
+    // If changing to completed, verify stock
     if (status === 'completed' && trade.status !== 'completed') {
       const product = await Product.findById(trade.product);
       if (!product) {
+        console.log('Product not found:', trade.product);
         return res.status(404).json({ error: 'Product not found' });
       }
 
-      // Verify stock is still available
       if (product.stock < trade.quantity) {
-        return res.status(400).json({ 
-          error: 'Insufficient stock to complete trade',
+        console.log('Insufficient stock:', {
           available: product.stock,
-          required: trade.quantity
+          requested: trade.quantity
+        });
+        return res.status(400).json({ 
+          error: 'Insufficient stock',
+          available: product.stock,
+          requested: trade.quantity
         });
       }
+
+      // Reduce stock
+      product.stock -= trade.quantity;
+      await product.save();
     }
 
     // If changing from completed to another status, restore stock
@@ -151,15 +184,16 @@ export const updateTradeStatus = async (req: Request, res: Response) => {
     trade.status = status;
     await trade.save();
 
-    // If completing the trade, update analytics
-    if (status === 'completed') {
-      // You could add additional logic here for analytics or notifications
-    }
+    console.log('Trade status updated successfully:', {
+      tradeId,
+      oldStatus: trade.status,
+      newStatus: status
+    });
 
     res.json(trade);
   } catch (error) {
     console.error('Update Trade Status Error:', error);
-    res.status(400).json({ error: 'Failed to update trade status' });
+    res.status(500).json({ error: 'Failed to update trade status' });
   }
 };
 

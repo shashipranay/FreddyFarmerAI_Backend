@@ -1,6 +1,7 @@
 import express from 'express';
 import {
     addToCart,
+    checkout,
     getCart,
     getChatResponse,
     getMarketInsights,
@@ -8,23 +9,24 @@ import {
     removeFromCart,
     updateCartItem
 } from '../controllers/customerController';
-import { auth } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
-// Apply authentication middleware to all routes
-router.use(auth);
+// Apply authentication middleware
+router.use(authenticateToken);
 
 // Orders
 router.get('/orders', getOrders);
 
-// Cart
+// Cart routes
 router.get('/cart', getCart);
 router.post('/cart/add', addToCart);
-router.put('/cart/update', updateCartItem);
+router.put('/cart/update/:productId', updateCartItem);
 router.delete('/cart/remove/:productId', removeFromCart);
+router.post('/cart/checkout', checkout);
 
-// AI Features
+// AI features
 router.post('/chat', getChatResponse);
 router.get('/market-insights', getMarketInsights);
 

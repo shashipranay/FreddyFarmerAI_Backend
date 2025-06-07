@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { Document } from 'mongoose';
 import Order, { IOrder } from '../models/Order';
 import { Product } from '../models/Product';
+import Trade from '../models/Trade';
 
 // Initialize Gemini AI
 const apiKey = process.env.GEMINI_API_KEY;
@@ -228,10 +229,13 @@ export const updateCartItem = async (req: Request, res: Response) => {
   try {
     console.log('Update cart request received:', {
       userId: req.user._id,
+      params: req.params,
       body: req.body
     });
 
-    const { productId, quantity } = req.body;
+    const { productId } = req.params;
+    const { quantity } = req.body;
+    
     if (!productId || !quantity) {
       return res.status(400).json({ message: 'Product ID and quantity are required' });
     }
@@ -349,5 +353,64 @@ export const removeFromCart = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error removing from cart:', error);
     res.status(500).json({ message: 'Failed to remove item from cart' });
+  }
+};
+
+// Checkout cart
+export const checkout = async (req: Request, res: Response) => {
+  try {
+    console.log('Checkout request received:', {
+      userId: req.user._id
+    });
+
+    // Find the cart
+    const cart = await Order.findOne({ 
+      customer: req.user._id,
+      status: 'cart'
+    }).populate('products.product');
+
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found' });
+    }
+
+    if (cart.products.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    // Create trades for each product
+    const trades = [];
+    for (const item of cart.products) {
+      const product = item.product as any;
+      
+      // Create trade
+      const trade = await Trade.create({
+        farmer: product.farmer,
+        buyer: req.user._id,
+        product: product._id,
+        quantity: item.quantity,
+        amount: product.price * item.quantity,
+        status: 'pending'
+      });
+
+      // Update product stock
+      await Product.findByIdAndUpdate(product._id, {
+        $inc: { stock: -item.quantity }
+      });
+
+      trades.push(trade);
+    }
+
+    // Update cart status to pending instead of completed
+    cart.status = 'pending';
+    await cart.save();
+
+    res.json({
+      message: 'Checkout successful. Your order has been placed and is pending farmer confirmation.',
+      trades,
+      order: cart
+    });
+  } catch (error) {
+    console.error('Checkout Error:', error);
+    res.status(500).json({ message: 'Failed to process checkout' });
   }
 }; 
