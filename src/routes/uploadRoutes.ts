@@ -1,55 +1,80 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import { auth } from '../middleware/auth';
+import cloudinary from '../config/cloudinary';
+import { AuthRequest } from '../types';
 
 const router = express.Router();
-
-// Configure multer for image upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage,
+const upload = multer({ 
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (extname && mimetype) {
-      return cb(null, true);
-    }
-    cb(new Error('Only image files are allowed!'));
   }
 });
 
-// Upload route
-router.post('/', auth, upload.single('image'), (req, res) => {
+// Upload image
+router.post('/', upload.single('image'), async (req: AuthRequest, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
+
+    console.log('File received:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
+    // Convert buffer to base64
+    const b64 = Buffer.from(req.file.buffer).toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+    console.log('Uploading to Cloudinary...');
     
-    // Return the full URL for the image
-    const baseUrl = process.env.API_URL || 'http://localhost:5000';
-    const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
-    res.json({ imageUrl });
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: 'green-harvest',
+      resource_type: 'auto',
+      use_filename: true,
+      unique_filename: true
+    });
+
+    console.log('Upload successful:', {
+      url: result.secure_url,
+      public_id: result.public_id
+    });
+
+    res.json({
+      url: result.secure_url,
+      public_id: result.public_id
+    });
   } catch (error) {
-    if (error instanceof Error) {
-      res.status(400).json({ error: error.message });
-    } else {
-      res.status(400).json({ error: 'An error occurred while uploading the file' });
-    }
+    console.error('Upload error:', error);
+    res.status(500).json({ 
+      error: 'Error uploading file',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Delete image
+router.delete('/:publicId', async (req: AuthRequest, res) => {
+  try {
+    const { publicId } = req.params;
+    console.log('Deleting image:', publicId);
+    
+    const result = await cloudinary.uploader.destroy(publicId);
+    console.log('Delete result:', result);
+    
+    res.json({ 
+      message: 'Image deleted successfully',
+      result
+    });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ 
+      error: 'Error deleting file',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
