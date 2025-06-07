@@ -11,36 +11,25 @@ const upload = multer({
   }
 });
 
-// Upload image
-router.post('/', upload.single('image'), async (req: AuthRequest, res) => {
+// Upload image to Cloudinary
+router.post('/image', upload.single('image'), async (req: AuthRequest, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ message: 'No image file provided' });
     }
 
-    console.log('File received:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    });
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
 
     // Convert buffer to base64
     const b64 = Buffer.from(req.file.buffer).toString('base64');
     const dataURI = `data:${req.file.mimetype};base64,${b64}`;
 
-    console.log('Uploading to Cloudinary...');
-    
     // Upload to Cloudinary
     const result = await cloudinary.uploader.upload(dataURI, {
-      folder: 'green-harvest',
-      resource_type: 'auto',
-      use_filename: true,
-      unique_filename: true
-    });
-
-    console.log('Upload successful:', {
-      url: result.secure_url,
-      public_id: result.public_id
+      folder: `freddyfarmer/${req.user._id}`,
+      resource_type: 'auto'
     });
 
     res.json({
@@ -48,32 +37,34 @@ router.post('/', upload.single('image'), async (req: AuthRequest, res) => {
       public_id: result.public_id
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    console.error('Image upload error:', error);
     res.status(500).json({ 
-      error: 'Error uploading file',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Error uploading image',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
-// Delete image
-router.delete('/:publicId', async (req: AuthRequest, res) => {
+// Delete image from Cloudinary
+router.delete('/image/:publicId', async (req: AuthRequest, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
     const { publicId } = req.params;
-    console.log('Deleting image:', publicId);
-    
     const result = await cloudinary.uploader.destroy(publicId);
-    console.log('Delete result:', result);
-    
-    res.json({ 
-      message: 'Image deleted successfully',
-      result
-    });
+
+    if (result.result !== 'ok') {
+      throw new Error('Failed to delete image');
+    }
+
+    res.json({ message: 'Image deleted successfully' });
   } catch (error) {
-    console.error('Delete error:', error);
+    console.error('Image deletion error:', error);
     res.status(500).json({ 
-      error: 'Error deleting file',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Error deleting image',
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

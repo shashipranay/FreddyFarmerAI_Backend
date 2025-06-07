@@ -1,13 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import mongoose, { Model } from 'mongoose';
+import mongoose, { Document, Model } from 'mongoose';
 import { IUser } from '../types';
-
-interface UserDocument extends IUser {}
-
-interface UserModel extends Model<UserDocument> {
-  findByCredentials(email: string, password: string): Promise<UserDocument>;
-}
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -29,23 +23,13 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['farmer', 'buyer', 'admin'],
-    default: 'buyer'
+    enum: ['farmer', 'customer'],
+    required: true
   },
   location: {
     type: String,
-    required: true
-  },
-  phone: {
-    type: String,
-    required: true
-  },
-  tokens: [{
-    token: {
-      type: String,
-      required: true
-    }
-  }]
+    trim: true
+  }
 }, {
   timestamps: true
 });
@@ -60,11 +44,13 @@ userSchema.pre('save', async function(next) {
 });
 
 // Generate auth token
-userSchema.methods.generateAuthToken = async function() {
+userSchema.methods.generateAuthToken = async function(): Promise<string> {
   const user = this;
-  const token = jwt.sign({ _id: user._id.toString() }, process.env.JWT_SECRET!);
-  user.tokens = user.tokens.concat({ token });
-  await user.save();
+  const token = jwt.sign(
+    { _id: user._id.toString() },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '7d' }
+  );
   return token;
 };
 
@@ -81,5 +67,14 @@ userSchema.statics.findByCredentials = async (email: string, password: string) =
   return user;
 };
 
+export interface UserDocument extends Document, IUser {
+  generateAuthToken(): Promise<string>;
+}
+
+interface UserModel extends Model<UserDocument> {
+  findByCredentials(email: string, password: string): Promise<UserDocument>;
+}
+
 const User = mongoose.model<UserDocument, UserModel>('User', userSchema);
+
 export default User; 

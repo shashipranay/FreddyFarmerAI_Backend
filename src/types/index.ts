@@ -1,15 +1,14 @@
 import { Request } from 'express';
 import { Document } from 'mongoose';
 
-export interface IUser extends Document {
+export interface IUser {
   name: string;
   email: string;
   password: string;
-  role: 'farmer' | 'buyer' | 'admin';
-  location: string;
-  phone: string;
-  tokens: Array<{ token: string }>;
-  generateAuthToken(): Promise<string>;
+  role: 'farmer' | 'customer';
+  location?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IUserModel extends Document {
@@ -17,6 +16,5 @@ export interface IUserModel extends Document {
 }
 
 export interface AuthRequest extends Request {
-  user?: IUser;
-  token?: string;
+  user?: IUser & Document;
 } 

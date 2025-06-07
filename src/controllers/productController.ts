@@ -1,13 +1,13 @@
 import { Response } from 'express';
+import cloudinary from '../config/cloudinary';
 import { Product } from '../models/Product';
 import { AuthRequest } from '../types';
-import cloudinary from '../utils/cloudinary';
 
 // Create a new product
 export const createProduct = async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.user) {
-      throw new Error('User not authenticated');
+    if (!req.user?._id) {
+      return res.status(401).json({ error: 'User not authenticated' });
     }
     const product = new Product({
       ...req.body,
@@ -124,7 +124,7 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
       user: req.user?._id
     });
 
-    if (!req.user) {
+    if (!req.user?._id) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
@@ -164,7 +164,7 @@ export const deleteProduct = async (req: AuthRequest, res: Response) => {
       user: req.user?._id
     });
 
-    if (!req.user) {
+    if (!req.user?._id) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
@@ -203,8 +203,8 @@ export const deleteProduct = async (req: AuthRequest, res: Response) => {
 // Add a review to a product
 export const addReview = async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.user) {
-      throw new Error('User not authenticated');
+    if (!req.user?._id) {
+      return res.status(401).json({ error: 'User not authenticated' });
     }
     const product = await Product.findById(req.params.id);
     if (!product) {
