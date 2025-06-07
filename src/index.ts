@@ -7,9 +7,11 @@ console.log('Loading .env from:', envPath);
 dotenv.config({ path: envPath });
 
 // Then import other dependencies
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
+import { createServer, Server } from 'http';
 import mongoose from 'mongoose';
 import authRoutes from './routes/authRoutes';
 import cartRoutes from './routes/cartRoutes';
@@ -80,9 +82,12 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.error('MongoDB connection error:', error));
 
+// Create HTTP server
+const server: Server = createServer(app);
+
 // Start server only if not in Vercel environment
 if (process.env.NODE_ENV !== 'production') {
-  app.listen(port, () => {
+  server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
     console.log('Available routes:');
     console.log('- GET /api/cart');
@@ -90,5 +95,7 @@ if (process.env.NODE_ENV !== 'production') {
   });
 }
 
-// Export the Express app for Vercel
-export default app; 
+// Export a handler for Vercel
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  server.emit('request', req, res);
+} 
