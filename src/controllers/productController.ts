@@ -26,6 +26,8 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
 // Get all products with filtering and pagination
 export const getProducts = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('Fetching products with query:', req.query);
+    
     const { 
       category, 
       minPrice, 
@@ -54,8 +56,12 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
       ];
     }
 
+    console.log('MongoDB query:', JSON.stringify(query, null, 2));
+
     const sort: any = {};
     sort[sortBy as string] = sortOrder === 'asc' ? 1 : -1;
+
+    console.log('Sort options:', sort);
 
     const products = await Product.find(query)
       .populate('farmer', 'name email location')
@@ -63,7 +69,10 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit));
 
+    console.log(`Found ${products.length} products`);
+
     const total = await Product.countDocuments(query);
+    console.log('Total products:', total);
 
     res.json({
       products,
@@ -72,8 +81,12 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
       total
     });
   } catch (error) {
+    console.error('Error in getProducts:', error);
     if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
     } else {
       res.status(500).json({ error: 'An error occurred while fetching products' });
     }

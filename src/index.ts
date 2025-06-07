@@ -103,9 +103,25 @@ app.use((req: express.Request, res: express.Response) => {
 
 // Connect to MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/green-harvest';
+console.log('Attempting to connect to MongoDB...');
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((error) => console.error('MongoDB connection error:', error));
+  .then(() => {
+    console.log('Successfully connected to MongoDB');
+    console.log('MongoDB URI:', MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@')); // Hide credentials in logs
+  })
+  .catch((error) => {
+    console.error('MongoDB connection error:', error);
+    process.exit(1); // Exit if cannot connect to database
+  });
+
+// Handle MongoDB connection events
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected');
+});
 
 // Start server only if not in Vercel environment
 if (process.env.NODE_ENV !== 'production') {
