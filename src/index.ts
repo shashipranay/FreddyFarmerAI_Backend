@@ -80,10 +80,15 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.error('MongoDB connection error:', error));
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-  console.log('Available routes:');
-  console.log('- GET /api/cart');
-  console.log('- POST /api/cart/add');
-}); 
+// Start server only if not in Vercel environment
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+    console.log('Available routes:');
+    console.log('- GET /api/cart');
+    console.log('- POST /api/cart/add');
+  });
+}
+
+// Export the Express app for Vercel
+export default app; 
