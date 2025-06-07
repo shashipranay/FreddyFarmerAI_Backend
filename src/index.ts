@@ -62,6 +62,23 @@ app.use('/api/farmer', farmerRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/cart', cartRoutes);
 
+// Root route handler
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to Green Harvest API',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      products: '/api/products',
+      upload: '/api/upload',
+      farmer: '/api/farmer',
+      customer: '/api/customer',
+      cart: '/api/cart',
+      health: '/api/health'
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
