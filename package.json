@@ -4,7 +4,7 @@
   "description": "Backend for Green Harvest - Agricultural Marketplace",
   "main": "src/index.ts",
   "scripts": {
-    "start": "node dist/index.js",
+    "start": "node -r ts-node/register src/index.ts",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "vercel-build": "tsc",
