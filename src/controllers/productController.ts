@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { Product } from '../models/Product';
 import { AuthRequest } from '../types';
+import cloudinary from '../utils/cloudinary';
 
 // Create a new product
 export const createProduct = async (req: AuthRequest, res: Response) => {
@@ -117,19 +118,36 @@ export const getProduct = async (req: AuthRequest, res: Response) => {
 // Update a product
 export const updateProduct = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('Updating product:', {
+      id: req.params.id,
+      body: req.body,
+      user: req.user?._id
+    });
+
     if (!req.user) {
-      throw new Error('User not authenticated');
+      return res.status(401).json({ error: 'User not authenticated' });
     }
-    const product = await Product.findOneAndUpdate(
-      { _id: req.params.id, farmer: req.user._id },
-      req.body,
-      { new: true, runValidators: true }
-    );
+
+    const product = await Product.findOne({ _id: req.params.id });
+    
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    res.json(product);
+
+    if (product.farmer.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized to update this product' });
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, farmer: req.user._id },
+      { new: true, runValidators: true }
+    ).populate('farmer', 'name email location');
+
+    console.log('Product updated:', updatedProduct);
+    res.json(updatedProduct);
   } catch (error) {
+    console.error('Update product error:', error);
     if (error instanceof Error) {
       res.status(400).json({ error: error.message });
     } else {
@@ -141,18 +159,39 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
 // Delete a product
 export const deleteProduct = async (req: AuthRequest, res: Response) => {
   try {
-    if (!req.user) {
-      throw new Error('User not authenticated');
-    }
-    const product = await Product.findOneAndDelete({
-      _id: req.params.id,
-      farmer: req.user._id
+    console.log('Deleting product:', {
+      id: req.params.id,
+      user: req.user?._id
     });
+
+    if (!req.user) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const product = await Product.findOne({ _id: req.params.id });
+    
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
+
+    if (product.farmer.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Not authorized to delete this product' });
+    }
+
+    // Delete associated images from Cloudinary if they exist
+    if (product.images && product.images.length > 0) {
+      for (const image of product.images) {
+        if (image.public_id) {
+          await cloudinary.uploader.destroy(image.public_id);
+        }
+      }
+    }
+
+    await Product.findByIdAndDelete(req.params.id);
+    console.log('Product deleted successfully');
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
+    console.error('Delete product error:', error);
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
     } else {
