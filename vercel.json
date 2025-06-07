@@ -3,12 +3,7 @@
   "builds": [
     {
       "src": "src/index.ts",
-      "use": "@vercel/node",
-      "config": {
-        "buildCommand": "npm run build",
-        "installCommand": "npm install",
-        "outputDirectory": "dist"
-      }
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -16,5 +11,8 @@
       "src": "/(.*)",
       "dest": "src/index.ts"
     }
-  ]
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install"
 }
