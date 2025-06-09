@@ -65,19 +65,24 @@ export const login = async (req: Request, res: Response) => {
 };
 
 // Logout user
-export const logout = async (req: Request, res: Response) => {
+export const logout = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
-      throw new Error('User not authenticated');
+      return res.status(401).json({ error: 'User not authenticated' });
     }
+
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) {
-      throw new Error('No token found');
+      return res.status(401).json({ error: 'No token found' });
     }
+
+    // Remove the token from the user's tokens array
     req.user.tokens = req.user.tokens.filter((t: any) => t.token !== token);
     await req.user.save();
+
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
+    console.error('Logout error:', error);
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
     } else {

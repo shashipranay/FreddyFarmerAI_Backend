@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Expense from '../models/Expense';
+import Order from '../models/Order';
 import { Product } from '../models/Product';
 import Trade from '../models/Trade';
 
@@ -169,6 +170,16 @@ export const updateTradeStatus = async (req: Request, res: Response) => {
       // Reduce stock
       product.stock -= trade.quantity;
       await product.save();
+
+      // Update associated order status to completed
+      if (trade.order) {
+        const order = await Order.findById(trade.order);
+        if (order) {
+          order.status = 'completed';
+          await order.save();
+          console.log('Order status updated to completed:', order._id);
+        }
+      }
     }
 
     // If changing from completed to another status, restore stock
@@ -177,6 +188,16 @@ export const updateTradeStatus = async (req: Request, res: Response) => {
       if (product) {
         product.stock += trade.quantity;
         await product.save();
+      }
+
+      // Update associated order status back to pending
+      if (trade.order) {
+        const order = await Order.findById(trade.order);
+        if (order) {
+          order.status = 'pending';
+          await order.save();
+          console.log('Order status updated to pending:', order._id);
+        }
       }
     }
 

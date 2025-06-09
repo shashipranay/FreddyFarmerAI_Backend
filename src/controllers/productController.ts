@@ -9,13 +9,29 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
     if (!req.user?._id) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
+
+    console.log('Creating product with data:', {
+      body: req.body,
+      user: req.user._id
+    });
+
+    // Handle image data
+    const images = req.body.images || [];
+    if (!Array.isArray(images)) {
+      return res.status(400).json({ error: 'Images must be an array' });
+    }
+
     const product = new Product({
       ...req.body,
+      images,
       farmer: req.user._id
     });
+
     await product.save();
+    console.log('Product created successfully:', product);
     res.status(201).json(product);
   } catch (error) {
+    console.error('Create product error:', error);
     if (error instanceof Error) {
       res.status(400).json({ error: error.message });
     } else {
@@ -66,6 +82,7 @@ export const getProducts = async (req: AuthRequest, res: Response) => {
 
     const products = await Product.find(query)
       .populate('farmer', 'name email location')
+      .select('name description price stock category images location harvestDate organic farmer')
       .sort(sort)
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit));
@@ -138,9 +155,21 @@ export const updateProduct = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Not authorized to update this product' });
     }
 
+    // Handle image data
+    const updateData = { ...req.body };
+    if (updateData.images) {
+      // If new images are provided, use them
+      if (!Array.isArray(updateData.images)) {
+        return res.status(400).json({ error: 'Images must be an array' });
+      }
+    } else {
+      // If no new images provided, keep existing images
+      updateData.images = product.images;
+    }
+
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, farmer: req.user._id },
+      { ...updateData, farmer: req.user._id },
       { new: true, runValidators: true }
     ).populate('farmer', 'name email location');
 
@@ -174,7 +203,17 @@ export const deleteProduct = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    if (product.farmer.toString() !== req.user._id.toString()) {
+    // Convert both IDs to strings for comparison
+    const productFarmerId = product.farmer.toString();
+    const userId = req.user._id.toString();
+
+    console.log('Comparing IDs:', {
+      productFarmerId,
+      userId,
+      match: productFarmerId === userId
+    });
+
+    if (productFarmerId !== userId) {
       return res.status(403).json({ error: 'Not authorized to delete this product' });
     }
 

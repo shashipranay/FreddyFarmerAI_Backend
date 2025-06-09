@@ -7,6 +7,7 @@ export interface ITrade extends Document {
   quantity: number;
   amount: number;
   status: 'pending' | 'completed' | 'cancelled';
+  order?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -41,6 +42,11 @@ const tradeSchema = new Schema<ITrade>({
     type: String,
     enum: ['pending', 'completed', 'cancelled'],
     default: 'pending'
+  },
+  order: {
+    type: Schema.Types.ObjectId,
+    ref: 'Order',
+    required: false
   }
 }, {
   timestamps: true

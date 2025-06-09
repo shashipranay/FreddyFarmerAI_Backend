@@ -6,6 +6,7 @@ import {
     getChatResponse,
     getMarketInsights,
     getOrders,
+    getTrades,
     removeFromCart,
     updateCartItem
 } from '../controllers/customerController';
@@ -18,6 +19,9 @@ router.use(authenticateToken);
 
 // Orders
 router.get('/orders', getOrders);
+
+// Trades
+router.get('/trades', getTrades);
 
 // Cart routes
 router.get('/cart', getCart);

@@ -1,9 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Request, Response } from 'express';
-import { Document } from 'mongoose';
 import Order, { IOrder } from '../models/Order';
 import { Product } from '../models/Product';
-import Trade from '../models/Trade';
+import Trade, { ITrade } from '../models/Trade';
 
 // Initialize Gemini AI
 const apiKey = process.env.GEMINI_API_KEY;
@@ -14,7 +13,18 @@ interface PopulatedProduct {
   _id: string;
   name: string;
   price: number;
-  image: string;
+  images?: Array<{ url: string; public_id: string }>;
+}
+
+interface PopulatedFarmer {
+  _id: string;
+  name: string;
+  location?: string;
+}
+
+interface PopulatedTrade extends Omit<ITrade, 'product' | 'farmer'> {
+  product: PopulatedProduct;
+  farmer: PopulatedFarmer;
 }
 
 interface PopulatedOrder extends Omit<IOrder, 'products'> {
@@ -25,23 +35,26 @@ interface PopulatedOrder extends Omit<IOrder, 'products'> {
 }
 
 // Get customer orders
-export const getOrders = async (req: Request, res: Response) => {
+export const getOrders = async (req: any, res: any) => {
   try {
     const orders = await Order.find({ customer: req.user._id })
-      .populate<{ products: Array<{ product: PopulatedProduct; quantity: number }> }>('products.product', 'name price image')
+      .populate<{ products: Array<{ product: PopulatedProduct; quantity: number }> }>('products.product', 'name price images')
       .sort({ createdAt: -1 });
 
-    const formattedOrders = orders.map((order: Document & PopulatedOrder) => ({
-      id: order._id,
-      products: order.products.map((item: { product: PopulatedProduct; quantity: number }) => ({
-        id: item.product._id,
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price
+    const formattedOrders = orders.map((order: PopulatedOrder) => ({
+      _id: order._id,
+      products: order.products.map(item => ({
+        product: {
+          _id: item.product._id,
+          name: item.product.name,
+          price: item.product.price,
+          images: item.product.images || []
+        },
+        quantity: item.quantity
       })),
       total: order.total,
       status: order.status,
-      date: order.createdAt.toISOString().split('T')[0]
+      createdAt: order.createdAt
     }));
 
     res.json({ orders: formattedOrders });
@@ -125,20 +138,22 @@ export const getCart = async (req: Request, res: Response) => {
     const cart = await Order.findOne({ 
       customer: req.user._id,
       status: 'cart'
-    }).populate<{ products: Array<{ product: PopulatedProduct; quantity: number }> }>('products.product', 'name price image');
+    }).populate<{ products: Array<{ product: PopulatedProduct; quantity: number }> }>('products.product', 'name price images');
 
     if (!cart) {
       return res.json({ cart: { products: [], total: 0 } });
     }
 
     const formattedCart = {
-      id: cart._id,
-      products: cart.products.map((item: { product: PopulatedProduct; quantity: number }) => ({
-        id: item.product._id,
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price,
-        image: item.product.image
+      _id: cart._id,
+      products: cart.products.map(item => ({
+        product: {
+          _id: item.product._id,
+          name: item.product.name,
+          price: item.product.price,
+          images: item.product.images || []
+        },
+        quantity: item.quantity
       })),
       total: cart.total
     };
@@ -389,7 +404,8 @@ export const checkout = async (req: Request, res: Response) => {
         product: product._id,
         quantity: item.quantity,
         amount: product.price * item.quantity,
-        status: 'pending'
+        status: 'pending',
+        order: cart._id // Set the order reference
       });
 
       // Update product stock
@@ -412,5 +428,40 @@ export const checkout = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Checkout Error:', error);
     res.status(500).json({ message: 'Failed to process checkout' });
+  }
+};
+
+// Get customer trades
+export const getTrades = async (req: any, res: any) => {
+  try {
+    const trades = await Trade.find({ buyer: req.user._id })
+      .populate<{ product: PopulatedProduct }>('product', 'name price images')
+      .populate<{ farmer: PopulatedFarmer }>('farmer', 'name location')
+      .sort({ createdAt: -1 });
+
+    // Format trades to ensure images are properly included
+    const formattedTrades = trades.map((trade: PopulatedTrade) => ({
+      _id: trade._id,
+      product: {
+        _id: trade.product._id,
+        name: trade.product.name,
+        price: trade.product.price,
+        images: trade.product.images || []
+      },
+      farmer: {
+        _id: trade.farmer._id,
+        name: trade.farmer.name,
+        location: trade.farmer.location
+      },
+      quantity: trade.quantity,
+      amount: trade.amount,
+      status: trade.status,
+      createdAt: trade.createdAt
+    }));
+
+    res.json({ trades: formattedTrades });
+  } catch (error) {
+    console.error('Get Trades Error:', error);
+    res.status(500).json({ error: 'Failed to fetch trades' });
   }
 }; 

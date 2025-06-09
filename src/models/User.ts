@@ -23,13 +23,19 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['farmer', 'customer'],
+    enum: ['farmer', 'customer', 'buyer'],
     required: true
   },
   location: {
     type: String,
     trim: true
-  }
+  },
+  tokens: [{
+    token: {
+      type: String,
+      required: true
+    }
+  }]
 }, {
   timestamps: true
 });
@@ -51,6 +57,11 @@ userSchema.methods.generateAuthToken = async function(): Promise<string> {
     process.env.JWT_SECRET || 'your-secret-key',
     { expiresIn: '7d' }
   );
+  
+  // Add token to user's tokens array
+  user.tokens = user.tokens.concat({ token });
+  await user.save();
+  
   return token;
 };
 
