@@ -37,30 +37,58 @@ interface PopulatedOrder extends Omit<IOrder, 'products'> {
 // Get customer orders
 export const getOrders = async (req: any, res: any) => {
   try {
-    const orders = await Order.find({ customer: req.user._id })
-      .populate<{ products: Array<{ product: PopulatedProduct; quantity: number }> }>('products.product', 'name price images')
-      .sort({ createdAt: -1 });
+    console.log('Fetching orders for user:', req.user._id);
 
-    const formattedOrders = orders.map((order: PopulatedOrder) => ({
-      _id: order._id,
-      products: order.products.map(item => ({
-        product: {
-          _id: item.product._id,
-          name: item.product.name,
-          price: item.product.price,
-          images: item.product.images || []
-        },
-        quantity: item.quantity
-      })),
-      total: order.total,
-      status: order.status,
-      createdAt: order.createdAt
-    }));
+    // Find orders excluding cart status
+    const orders = await Order.find({ 
+      customer: req.user._id,
+      status: { $ne: 'cart' } // Exclude cart status
+    })
+    .populate({
+      path: 'products.product',
+      select: 'name price images',
+      model: 'Product'
+    })
+    .sort({ createdAt: -1 });
 
-    res.json({ orders: formattedOrders });
+    console.log('Found orders:', orders.length);
+
+    // Format orders with proper error handling
+    const formattedOrders = orders.map((order: any) => {
+      try {
+        return {
+          _id: order._id,
+          products: order.products.map((item: any) => ({
+            product: {
+              _id: item.product?._id || 'unknown',
+              name: item.product?.name || 'Unknown Product',
+              price: item.product?.price || 0,
+              images: item.product?.images || []
+            },
+            quantity: item.quantity || 0
+          })),
+          total: order.total || 0,
+          status: order.status || 'pending',
+          createdAt: order.createdAt
+        };
+      } catch (error) {
+        console.error('Error formatting order:', order._id, error);
+        return null;
+      }
+    }).filter(Boolean); // Remove any null entries from formatting errors
+
+    console.log('Formatted orders:', formattedOrders.length);
+
+    res.json({ 
+      orders: formattedOrders,
+      message: 'Orders fetched successfully'
+    });
   } catch (error) {
     console.error('Get Orders Error:', error);
-    res.status(500).json({ error: 'Failed to fetch orders' });
+    res.status(500).json({ 
+      error: 'Failed to fetch orders',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
