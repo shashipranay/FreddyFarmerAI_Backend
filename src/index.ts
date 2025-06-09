@@ -23,6 +23,7 @@ console.log('Environment variables loaded:');
 console.log('PORT:', process.env.PORT);
 console.log('MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
 console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'Set' : 'Not set');
+console.log('CLOUDINARY_URL:', process.env.CLOUDINARY_URL ? 'Set' : 'Not set');
 console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Set' : 'Not set');
 console.log('API Key length:', process.env.GEMINI_API_KEY?.length);
 console.log('API Key starts with:', process.env.GEMINI_API_KEY?.substring(0, 7));
@@ -30,18 +31,30 @@ console.log('API Key starts with:', process.env.GEMINI_API_KEY?.substring(0, 7))
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
+// CORS configuration
+const allowedOrigins = [
+  'https://freddy-farmer-ai-frontend.vercel.app',
+  'http://localhost:8080',
+  'http://localhost:3000'
+];
+
 app.use(cors({
-  origin: [
-    'https://freddy-farmer-ai-frontend.vercel.app',
-    'https://freddy-farmer-ai-frontend.vercel.app/',
-    'http://localhost:8080',
-    'http://localhost:3000'
-  ],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+
+// Middleware
 app.use(express.json());
 
 // Debug middleware to log all requests
@@ -113,6 +126,12 @@ mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('Successfully connected to MongoDB');
     console.log('MongoDB URI:', MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@')); // Hide credentials in logs
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+      console.log('Available routes:');
+      console.log('- GET /api/cart');
+      console.log('- POST /api/cart/add');
+    });
   })
   .catch((error) => {
     console.error('MongoDB connection error:', error);
@@ -127,16 +146,6 @@ mongoose.connection.on('error', (err) => {
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
 });
-
-// Start server only if not in Vercel environment
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-    console.log('Available routes:');
-    console.log('- GET /api/cart');
-    console.log('- POST /api/cart/add');
-  });
-}
 
 // Export the Express app for Vercel
 export default app; 
