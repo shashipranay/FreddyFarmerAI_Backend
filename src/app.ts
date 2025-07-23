@@ -13,7 +13,22 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  'https://freddyfarmer.vercel.app',
+  'https://freddy-farmer-ai-frontend.vercel.app',
+  'http://localhost:8080',
+  'http://localhost:3000' // optional: keep if you want to allow old frontend
+];
+app.use(cors({
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('Not allowed by CORS'), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Debug middleware to log all requests
